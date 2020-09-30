@@ -69,7 +69,7 @@ precip_df =
 left_join(precip_df, month_df, by = "month")
 ```
 
-This dataset contains information from the Mr. Trashwheel trash collector in Baltimore, Maryland. As trash enters the inner harbor, the trashwheel collects that trash, and stores it in a dumpster. he dataset contains information on year, month, and trash collected, include some specific kinds of trash. 
+This dataset contains information from the Mr. Trashwheel trash collector in Baltimore, Maryland. As trash enters the inner harbor, the trashwheel collects that trash, and stores it in a dumpster. The dataset contains information on year, month, and trash collected, include some specific kinds of trash. 
 
 The **trashwheel_df** dataset has `r nrow(trashwheel_df)` observations. It includes date of trash collection for each dumpster, weight and volume of trash collected, and the number of specific types of trash.
 
@@ -88,18 +88,23 @@ transit_df =
   janitor::clean_names() %>% 
   select(line:ada, -exit_only, -staffing, -staff_hours) %>% 
   mutate(entry = recode(entry, "YES" = 1, "NO" = 0)) %>% 
-  mutate(entry = as.logical(entry))
+  mutate(entry = as.logical(entry)) %>% 
+  mutate(vending = recode(vending, "YES" = 1, "NO" = 0)) %>% 
+  mutate(vending = as.logical(vending))
 
 ```
 
-**Write a short paragraph about this dataset – explain briefly what variables the dataset contains, describe your data cleaning steps so far, and give the dimension (rows x columns) of the resulting dataset. Are these data tidy?**
+The **transit_df** dataset contains information about each NYC subway station, which includes station name, line, station latitude / longitude, each route served, whether entry is allowed, whether vending is available, entrance type, and ADA compliance.
 
+`janitor::clean_names()` is used to clean up variable names after importing data. Using `select()`, columns from  line variable to ada variable are included, and unneded variables among those columns are removed including exit_only, staffing, and staff_hours. The entry variable and vending variable are converted from character (YES vs NO) to logical variables. These data are not tidy enough. The route names spread across 11 columns, which correspond to several route numbers. `pivot_longer()` is needed to further tidy the dataset.
+
+The resulting dataset has `r nrow(transit_df)` rows and `r ncol(transit_df)` columns.
 
 There are `r distinct(transit_df, line, station_name, .keep_all = TRUE) %>% nrow()` distinct stations.
 
 `r distinct(transit_df, line, station_name, .keep_all = TRUE) %>% filter(ada == TRUE) %>% nrow()` stations are ADA compliant.
 
-`r nrow(filter(transit_df, vending == "NO", entry == TRUE))/nrow(filter(transit_df, vending == "NO"))*100`% of station entrances / exits without vending allow entrance.
+`r nrow(filter(transit_df, vending == FALSE, entry == TRUE))/nrow(filter(transit_df, vending == FALSE))*100`% of station entrances / exits without vending allow entrance.
 
 
 Reformat data so that route number and route name are distinct variables. 
@@ -110,15 +115,93 @@ transit_tidy_data =
   mutate_at(vars(route1:route11), as.character) %>% 
   pivot_longer(
     route1:route11,
-    names_to = "route_number",
+    names_to = "route_name",
     names_prefix = "route",
-    values_to = "route_name"
+    values_to = "route_number"
   )
 ```
 
-`r distinct(transit_tidy_data, line, station_name, .keep_all = TRUE) %>% filter(route_name == "A") %>% nrow()` distinct stations serve the A train.
+`r distinct(transit_tidy_data, line, station_name, .keep_all = TRUE) %>% filter(route_number == "A") %>% nrow()` distinct stations serve the A train.
 
-`r distinct(transit_tidy_data, line, station_name, .keep_all = TRUE) %>% filter(route_name == "A", ada == TRUE) %>% nrow()` are ADA compliant of the stations that serve the A train.
+`r distinct(transit_tidy_data, line, station_name, .keep_all = TRUE) %>% filter(route_number == "A", ada == TRUE) %>% nrow()` stations that serve the A train are ADA compliant.
 
 
+## problem 3
+
+First, import and clean the data in pols-month dataset.
+
+```{r}
+pols_df = 
+  read.csv("./data/pols-month.csv") %>% 
+  janitor::clean_names() %>% 
+  separate(mon,into = c("year", "month", "day"), sep = "-", convert = TRUE) %>% 
+  left_join( month_df, by = "month") %>% 
+  select(-month) %>% 
+  relocate(year, month_name, everything()) %>% 
+  rename(month = month_name) %>% 
+  mutate(president = case_when(
+    prez_dem == 1 ~"dem",
+    prez_gop == 1 ~ "gop"
+  )) %>% 
+  select(-prez_dem, -prez_gop) %>% 
+  select(-day)
+
+# prez_gop variable has three possible values (0, 1, 2). Since the meaning of 2 hasn't been specified, I leave it as NA in president variable.
+```
+
+Second, import and clean the data in snp dataset.
+
+```{r}
+snp_df = 
+  read.csv("./data/snp.csv") %>% 
+  janitor::clean_names() %>% 
+  separate(date,into = c("month", "day", "year"), sep = "/", convert = TRUE) %>% 
+  left_join( month_df, by = "month") %>% 
+  select(-month) %>% 
+  relocate(year, month_name, everything()) %>% 
+  rename(month = month_name) %>% 
+  select(-day) %>% 
+  arrange(year, month)
+```
+
+Third, import and tidy the unemployment data
+
+```{r}
+unemploy_df = 
+  read.csv("./data/unemployment.csv") %>% 
+  rename(January = Jan, 
+         February = Feb,
+         March = Mar,
+         April = Apr,
+         May = May,
+         June = Jun,
+         July = Jul,
+         August = Aug,
+         September = Sep,
+         October = Oct,
+         November = Nov,
+         December = Dec) %>% 
+  pivot_longer(
+    January:December,
+    names_to = "month",
+    values_to = "unemployment"
+  ) %>% 
+  rename(year = Year)
+```
+
+Join the datasets by merging snp into pols, and merging unemployment into the result.
+
+```{r}
+final_data_df = 
+  left_join(pols_df, snp_df, by = c("year","month")) %>% 
+  left_join(unemploy_df, by = c("year","month"))
+```
+
+The **pols_df** dataset contains information about the number of national politicians who are democratic or republican at any given year and month from year `r min(pull(pols_df, year))` to `r max(pull(pols_df, year))`. Key variables include the number of governors, senators, and representatives from each political party, as well as the political party of president in any given year and month. The dataset has `r nrow(pols_df)` rows and `r ncol(pols_df)` columns.
+
+The **snp_df** dataset contains information on closing values of Standard & Poor’s stock market index (S&P) in any given year and month from year `r min(pull(snp_df, year))` to `r max(pull(snp_df, year))`. Key variables include year, month, and the corresponding closing values. The dataset has `r nrow(snp_df)` rows and `r ncol(snp_df)` columns.
+
+The **unemploy_df** dataset contains information on unployment percentage in any given year and month from year `r min(pull(unemploy_df, year))` to `r max(pull(unemploy_df, year))`. Key variables include year, month, and  corresponding percentage of unemployment. The dataset has `r nrow(unemploy_df)` rows and `r ncol(unemploy_df)` columns.
+
+The **final_data_df** dataset is generated by merging **pols_df**, **snp_df**, and **unemploy_df** datasets by year and month. It contains information on numbers of national politicians in each political party, the political party of president, closing values of Standard & Poor’s stock market index, and unemployment percentage in any given year and month from `r min(pull(final_data_df, year))` to `r max(pull(final_data_df, year))`. The dataset has `r nrow(final_data_df)` rows and `r ncol(final_data_df)` columns.
 
