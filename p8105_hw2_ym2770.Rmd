@@ -69,4 +69,13 @@ precip_df =
 left_join(precip_df, month_df, by = "month")
 ```
 
-This dataset contains information from the Mr. Trashwheel trash collector in Baltimore, Maryland. As trash enters the inner harbor, the trashwheel collects that trash, and stores it in a dumpster. The dataset contains information on year, month, and trash collected, include some specific kinds of trash. There are a total of `r nrow(trashwheel_df)` rows in our final dataset. Additional data sheets include month precipitation data.
+This dataset contains information from the Mr. Trashwheel trash collector in Baltimore, Maryland. As trash enters the inner harbor, the trashwheel collects that trash, and stores it in a dumpster. he dataset contains information on year, month, and trash collected, include some specific kinds of trash. 
+
+The **trashwheel_df** dataset has `r nrow(trashwheel_df)` observations. It includes date of trash collection for each dumpster, weight and volume of trash collected, and the number of specific types of trash.
+
+The **precip_df** dataset includes month precipitation data, and has `r nrow(precip_df)` observations.
+
+For available data, the total precipitation in 2018 was `r sum(pull(precip_2018, var = total))` inches. The median number of sports balls in a dumpster in 2017 was `r filter(trashwheel_df, year == 2017) %>% pull(sports_balls) %>% median()`.
+
+
+
