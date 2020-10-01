@@ -167,26 +167,23 @@ snp_df =
 Third, import and tidy the unemployment data
 
 ```{r}
+month_abb_df = tibble(
+  month = month.abb,
+  month_full = month.name
+)
+
 unemploy_df = 
   read.csv("./data/unemployment.csv") %>% 
-  rename(January = Jan, 
-         February = Feb,
-         March = Mar,
-         April = Apr,
-         May = May,
-         June = Jun,
-         July = Jul,
-         August = Aug,
-         September = Sep,
-         October = Oct,
-         November = Nov,
-         December = Dec) %>% 
   pivot_longer(
-    January:December,
+    Jan:Dec,
     names_to = "month",
     values_to = "unemployment"
   ) %>% 
-  rename(year = Year)
+  left_join(month_abb_df, by = "month") %>% 
+  select(-month) %>% 
+  relocate(Year, month_full, unemployment) %>%
+  rename(year = Year, month = month_full)
+
 ```
 
 Join the datasets by merging snp into pols, and merging unemployment into the result.
