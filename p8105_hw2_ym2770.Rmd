@@ -84,19 +84,18 @@ Read NYC Transit data
 
 ```{r}
 transit_df = 
-  read.csv("./data/NYC_Transit_Subway_Entrance_And_Exit_Data.csv") %>% 
+  read.csv("./data/NYC_Transit_Subway_Entrance_And_Exit_Data.csv", na = c("", "NA", ".")) %>% 
   janitor::clean_names() %>% 
   select(line:ada, -exit_only, -staffing, -staff_hours) %>% 
   mutate(entry = recode(entry, "YES" = 1, "NO" = 0)) %>% 
   mutate(entry = as.logical(entry)) %>% 
   mutate(vending = recode(vending, "YES" = 1, "NO" = 0)) %>% 
   mutate(vending = as.logical(vending))
-
 ```
 
 The **transit_df** dataset contains information about each NYC subway station, which includes station name, line, station latitude / longitude, each route served, whether entry is allowed, whether vending is available, entrance type, and ADA compliance.
 
-`janitor::clean_names()` is used to clean up variable names after importing data. Using `select()`, columns from  line variable to ada variable are included, and unneded variables among those columns are removed including exit_only, staffing, and staff_hours. The entry variable and vending variable are converted from character (YES vs NO) to logical variables. These data are not tidy enough. The route names spread across 11 columns, which correspond to several route numbers. `pivot_longer()` is needed to further tidy the dataset.
+All blank cells are filled with `janitor::clean_names()` is used to clean up variable names after importing data. Using `select()`, columns from  line variable to ada variable are included, and unneded variables among those columns are removed including exit_only, staffing, and staff_hours. The entry variable and vending variable are converted from character (YES vs NO) to logical variables. These data are not tidy enough. The route names spread across 11 columns, which correspond to several route numbers. A lot of stations have fewer than 11 routes, so a lot of cells have NA value. `pivot_longer()` is needed to further tidy the dataset.
 
 The resulting dataset has `r nrow(transit_df)` rows and `r ncol(transit_df)` columns.
 
@@ -118,7 +117,9 @@ transit_tidy_data =
     names_to = "route_name",
     names_prefix = "route",
     values_to = "route_number"
-  )
+  ) %>% 
+  drop_na(route_number)
+  
 ```
 
 `r distinct(transit_tidy_data, line, station_name, .keep_all = TRUE) %>% filter(route_number == "A") %>% nrow()` distinct stations serve the A train.
